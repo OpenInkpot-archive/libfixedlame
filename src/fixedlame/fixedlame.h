@@ -7,7 +7,7 @@ typedef size_t (*fixedlame_write_callback_t)(void *userdata, void *buf,
                     size_t size);
 
 fixedlame_t *
-fixedlame_init();
+fixedlame_init(int sample_rate, int channels, int bitrate);
 
 void
 fixedlame_set_log_callback(fixedlame_t *, void (*func)(const char *));

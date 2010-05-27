@@ -4,5 +4,5 @@ lib_LTLIBRARIES = libfixedlame.la
 
 include_HEADERS = fixedlame.h
 
-libfixedlame_la_SOURCES = api.c
+libfixedlame_la_SOURCES = api.c mp3_enc.c general.c
 

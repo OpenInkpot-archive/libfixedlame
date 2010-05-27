@@ -31,14 +31,14 @@
 #define MEM 2
 #endif
 
-#include <_ansi.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "strlcpy.h"
-#include "config.h"
+
+#include "_ansi.h"
+
+#include "settings.h"
 #include "system.h"
-#include "metadata.h"
-#include "audio.h"
+
 #ifdef RB_PROFILE
 #include "profile.h"
 #include "thread.h"
@@ -49,7 +49,7 @@
 #endif
 #include "dsp.h"
 #endif
-#include "settings.h"
+#include "enc_base.h"
 
 #ifdef CODEC
 #if defined(DEBUG) || defined(SIMULATOR)
@@ -101,11 +101,11 @@ struct codec_api {
 
     off_t  filesize;          /* Total file length */
     off_t  curpos;            /* Current buffer position */
-    
+
     /* For gapless mp3 */
     struct mp3entry *id3;     /* TAG metadata pointer */
     bool *taginfo_ready;      /* Is metadata read */
-    
+
     /* Codec should periodically check if stop_codec is set to true.
        In case it is, codec must return immediately */
     bool stop_codec;
@@ -118,7 +118,7 @@ struct codec_api {
 
     /* The dsp instance to be used for audio output */
     struct dsp_config *dsp;
-    
+
     /* Returns buffer to malloc array. Only codeclib should need this. */
     void* (*codec_get_buffer)(size_t *size);
     /* Insert PCM data into audio buffer for playback. Playback will start
@@ -126,7 +126,7 @@ struct codec_api {
     void (*pcmbuf_insert)(const void *ch1, const void *ch2, int count);
     /* Set song position in WPS (value in ms). */
     void (*set_elapsed)(unsigned long value);
-    
+
     /* Read next <size> amount bytes from file buffer to <ptr>.
        Will return number of bytes read or 0 if end of file. */
     size_t (*read_filebuf)(void *ptr, size_t size);
@@ -149,7 +149,7 @@ struct codec_api {
     bool (*request_next_track)(void);
     /* Free the buffer area of the current codec after its loaded */
     void (*discard_codec)(void);
-    
+
     void (*set_offset)(size_t value);
     /* Configure different codec buffer parameters. */
     void (*configure)(int setting, intptr_t value);
@@ -212,7 +212,7 @@ struct codec_api {
     void (*profile_func_enter)(void *this_fn, void *call_site);
     void (*profile_func_exit)(void *this_fn, void *call_site);
 #endif
- 
+
 #if defined(HAVE_RECORDING) && !defined(SIMULATOR)
     volatile bool   stop_encoder;
     volatile int    enc_codec_loaded; /* <0=error, 0=pending, >0=ok */

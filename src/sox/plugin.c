@@ -4,6 +4,9 @@
 #include "fixedlame.h"
 #include "sox_mp3_plugin.h"
 
+#define MP3_LAME_PRECISION 24
+
+
 static size_t
 _fixedlame_write_callback(void *userdata, void *buf, size_t size)
 {
@@ -27,15 +30,23 @@ static int
 mp3_start_write(sox_format_t * ft)
 {
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) ft->priv;
-    self->codec = fixedlame_init();
-    fixedlame_set_err_callback(self->codec, _fixedlame_errf);
-    fixedlame_set_log_callback(self->codec, _fixedlame_logf);
-    fixedlame_set_write_callback(self->codec, _fixedlame_write_callback, self);
     self->file = fopen(ft->filename, "wb");
     if(!self->file)
     {
         return SOX_EOF;
     }
+    int channels;
+    if (ft->signal.channels == SOX_ENCODING_UNKNOWN) {
+        channels = 1;
+        ft->signal.channels = 1;
+    } else
+        channels = ft->signal.channels;
+    int bitrate = 128;
+    self->codec = fixedlame_init(ft->signal.rate, channels, bitrate);
+    ft->signal.precision = MP3_LAME_PRECISION;
+    fixedlame_set_err_callback(self->codec, _fixedlame_errf);
+    fixedlame_set_log_callback(self->codec, _fixedlame_logf);
+    fixedlame_set_write_callback(self->codec, _fixedlame_write_callback, self);
     return SOX_SUCCESS;
 }
 
@@ -43,9 +54,8 @@ static int
 mp3_stop_write(sox_format_t * ft)
 {
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) ft->priv;
-    fixedlame_flush(self->codec);
-    fixedlame_shutdown(self->codec);
     fclose(self->file);
+    fixedlame_shutdown(self->codec);
     return SOX_SUCCESS;
 }
 
@@ -53,14 +63,14 @@ static size_t
 mp3_write(sox_format_t * ft, const sox_sample_t *buf, size_t samp)
 {
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) ft->priv;
-    fixedlame_encode(self->codec, buf, samp);
+    fixedlame_encode(self->codec, (void *)buf, samp);
     return 0;
 }
 
 const sox_format_handler_t *
 lsx_fixedpoint_mp3_format_fn()
 {
-    static char const * const names[] = { "fixedpoint_mp3", NULL };
+    static char const * const names[] = { "mp3", "fmp3", "fixedpoint_mp3", NULL };
     static unsigned const write_encodings[] = {
         SOX_ENCODING_MP3, 0, 0,
     };

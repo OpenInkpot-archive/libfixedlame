@@ -32,12 +32,16 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 //    Library General Public License for more details.
 
-#ifndef SIMULATOR
-
+#include <assert.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include "codeclib.h"
+#include "metadata.h" // Moved from codecs.h by avn
+#include "general.h"
+#include "fixedlame.h"
+#include "fixedlame_private.h"
 
-CODEC_ENC_HEADER
+//CODEC_ENC_HEADER
 
 #define ENC_PADDING_FRAMES1        2
 #define ENC_PADDING_FRAMES2        4
@@ -50,8 +54,6 @@ CODEC_ENC_HEADER
 #define SAMPL2                576
 #define SBLIMIT                32
 #define HTN                    16
-#define memcpy      ci->memcpy
-#define memset      ci->memset
 #define putlong(c, s)  if(s+sz <= 32) { cc = (cc << s) | c;      sz+= s; } \
                        else           { putbits(cc, sz); cc = c; sz = s; }
 
@@ -122,9 +124,9 @@ struct huffcodebig {
 
 static short     mfbuf       [2*(1152+512)]      IBSS_ATTR; /*  3328 Bytes */
 static int       sb_data     [2][2][18][SBLIMIT] IBSS_ATTR; /* 13824 Bytes */
-static int       mdct_freq   [SAMPL2]            IBSS_ATTR; /*  2304 Bytes */
-static char      mdct_sign   [SAMPL2]            IBSS_ATTR; /*   576 Bytes */
-static short     enc_data    [SAMPL2]            IBSS_ATTR; /*  1152 Bytes */
+static int       mdct_freq   [SAMPL2+100]            IBSS_ATTR; /*  2304 Bytes */
+static char      mdct_sign   [SAMPL2+100]            IBSS_ATTR; /*   576 Bytes */
+static short     enc_data    [SAMPL2+100]            IBSS_ATTR; /*  1152 Bytes */
 static uint32_t  scalefac    [23]                IBSS_ATTR; /*    92 Bytes */
 static BF_Data   CodedData                       IBSS_ATTR; /*  1056 Bytes */
 static int       ca          [8]                 IBSS_ATTR; /*    32 Bytes */
@@ -177,7 +179,7 @@ static unsigned pcm_chunk_size                   IBSS_ATTR;
 static unsigned samp_per_frame                   IBSS_ATTR;
 
 static config_t          cfg                     IBSS_ATTR;
-static char             *res_buffer;
+//static unsigned char             *res_buffer;
 static int32_t           err                     IBSS_ATTR;
 static uint8_t           band_scale_f[22];
 
@@ -187,7 +189,7 @@ static const uint8_t ht_count_const[2][2][16] =
   { {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },     /* table1 */
     { 4,  5,  5,  6,  5,  6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8 } } }; /* hleng1 */
 
-static const uint8_t  t1HB_const[4]  = {1,1,1,0}; 
+static const uint8_t  t1HB_const[4]  = {1,1,1,0};
 static const uint8_t  t2HB_const[9]  = {1,2,1,3,1,1,3,2,0};
 static const uint8_t  t3HB_const[9]  = {3,2,1,1,1,1,3,2,0};
 static const uint8_t  t5HB_const[16] = {1,2,6,5,3,1,4,4,7,5,7,1,6,1,1,0};
@@ -741,15 +743,15 @@ static const short int2idx_const[4096] = /*  int2idx[i] = sqrt(i*sqrt(i)); */
 509,509,509,509,509,509,509,509,509,509,510,510,510,510,510,510,510,510,510,510,
 510,511,511,511,511,511,511,511,511,511,511,512,512,512,512,512 };
 
-static const int order[32] = 
+static const int order[32] =
 { 0, 1, 16, 17, 8, 9, 24, 25, 4, 5, 20, 21, 12, 13, 28, 29,
   2, 3, 18, 19,10,11, 26, 27, 6, 7, 22, 23, 14, 15, 30, 31 };
 
-static const long sampr_index[2][3] = 
+static const unsigned long sampr_index[2][3] =
 { { 22050, 24000, 16000 },      /* MPEG 2 */
   { 44100, 48000, 32000 } };    /* MPEG 1 */
 
-static const long bitr_index[2][15] =
+static const unsigned long bitr_index[2][15] =
 { {0, 8,16,24,32,40,48,56, 64, 80, 96,112,128,144,160},    /* MPEG 2 */
   {0,32,40,48,56,64,80,96,112,128,160,192,224,256,320} };  /* MPEG 1 */
 
@@ -767,7 +769,7 @@ static const int ca_const[8] =
 static const int cs_const[8] =
 { 28098, 28893, 31117, 32221, 32621, 32740, 32765, 32768 };
 
-static const short enwindow_const[15*27+24] = 
+static const short enwindow_const[15*27+24] =
 { 0,   65,  593,  1766, 22228, 2115, 611, 62,
   8,  119, 1419, 10564,-11659,-1635,-154, -9,
  -8, -119,-1419,-10564, 11659, 1635, 154,  9, 464,  100,  91,
@@ -855,7 +857,7 @@ static void encodeSideInfo( side_info_t si[2][2] )
 {
   int gr, ch, header;
   uint32_t  cc=0, sz=0;
-  
+
   /*
    * MPEG header layout:
    * AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM
@@ -962,7 +964,7 @@ static void Huffmancodebits( short *ix, char *xr_sign, side_info_t *gi )
 
   if(bigvals > region2)
     bits += HuffmanCode(ix, xr_sign, region2, bigvals, gi->table_select[2]);
- 
+
   if(count1 > bigvals)
     bits += HuffmanCod1(ix, xr_sign, bigvals,  count1, gi->table_select[3]);
 
@@ -1160,7 +1162,7 @@ static int choose_table( short *ix, uint32_t begin, uint32_t end, int *bits )
 {
   uint32_t i;
   int    max, table0, table1;
-  
+
   for(i=begin,max=0; i<end; i++)
     if(ix[i] > max)
       max = ix[i];
@@ -1317,7 +1319,7 @@ static int calc_runlen( short *ix, side_info_t *si )
     int w = ix[i-2];
     int x = ix[i-3];
     int y = ix[i-4];
-    
+
     if((v | w | x | y) <= 1)
     {
       p = (y<<3) + (x<<2) + (w<<1) + (v);
@@ -1382,7 +1384,7 @@ static int quantize_int(int *xr, short *ix, side_info_t *si)
 static void subdivide(side_info_t *si)
 {
   int scfb, count0, count1;
-  
+
   if( !si->address3 )
   { /* no bigvalue region */
     si->region_0_1 = 0;
@@ -1444,7 +1446,7 @@ static int quantize_and_count_bits(int *xr, short *ix, side_info_t *si)
 
 /************************************************************************/
 /* The code selects the best quantStep for a particular set of scalefacs*/
-/************************************************************************/ 
+/************************************************************************/
 static int inner_loop(int *xr, int max_bits, side_info_t *si)
 {
   int bits;
@@ -1785,7 +1787,7 @@ void window_subband2(short *x1, int a[SBLIMIT])
   a[ 7] -= a[ 6];
   a[22] -= a[ 7];
   a[23] -= a[22];
-    
+
   xr = a[ 6];  a[ 6] = a[31] - xr;  a[31] = a[31] + xr;
   xr = a[ 7];  a[ 7] = a[30] - xr;  a[30] = a[30] + xr;
   xr = a[22];  a[22] = a[15] - xr;  a[15] = a[15] + xr;
@@ -1805,23 +1807,23 @@ void window_subband2(short *x1, int a[SBLIMIT])
   xr = a[ 1] - a[13];  a[ 1] += a[13];  a[13] = shft9(xr) * wp[ -4*27+25];
   xr = a[16] - a[28];  a[16] += a[28];  a[28] = shft9(xr) * wp[ -4*27+25];
   xr =-a[17] + a[29];  a[17] += a[29];  a[29] = shft9(xr) * wp[ -4*27+25];
-  
+
   xr = SQRT * shft9(a[ 2] - a[10]);  a[ 2] += a[10];  a[10] = xr;
   xr = SQRT * shft9(a[ 3] - a[11]);  a[ 3] += a[11];  a[11] = xr;
   xr = SQRT * shft9(a[26] - a[18]);  a[18] += a[26];  a[26] = xr - a[18];
   xr = SQRT * shft9(a[27] - a[19]);  a[19] += a[27];  a[27] = xr - a[19];
-  
+
   xr = a[ 2];  a[19] -= a[ 3];  a[ 3] -= xr;  a[ 2] = a[31] - xr;  a[31] += xr;
   xr = a[ 3];  a[11] -= a[19];  a[18] -= xr;  a[ 3] = a[30] - xr;  a[30] += xr;
   xr = a[18];  a[27] -= a[11];  a[19] -= xr;  a[18] = a[15] - xr;  a[15] += xr;
-  
+
   xr = a[19];  a[10] -= xr;  a[19] = a[14] - xr;  a[14] += xr;
   xr = a[10];  a[11] -= xr;  a[10] = a[23] - xr;  a[23] += xr;
   xr = a[11];  a[26] -= xr;  a[11] = a[22] - xr;  a[22] += xr;
   xr = a[26];  a[27] -= xr;  a[26] = a[ 7] - xr;  a[ 7] += xr;
-  
+
   xr = a[27];  a[27] = a[6] - xr;  a[6] += xr;
-  
+
   xr = SQRT * shft9(a[ 0] - a[ 4]);  a[ 0] += a[ 4];  a[ 4] = xr;
   xr = SQRT * shft9(a[ 1] - a[ 5]);  a[ 1] += a[ 5];  a[ 5] = xr;
   xr = SQRT * shft9(a[16] - a[20]);  a[16] += a[20];  a[20] = xr;
@@ -1830,15 +1832,15 @@ void window_subband2(short *x1, int a[SBLIMIT])
   xr =-SQRT * shft9(a[ 9] - a[13]);  a[ 9] += a[13];  a[13] = xr - a[ 9];
   xr =-SQRT * shft9(a[25] - a[29]);  a[25] += a[29];  a[29] = xr - a[25];
   xr =-SQRT * shft9(a[24] + a[28]);  a[24] -= a[28];  a[28] = xr - a[24];
-  
+
   xr = a[24] - a[16]; a[24] = xr;
   xr = a[20] - xr;    a[20] = xr;
   xr = a[28] - xr;    a[28] = xr;
-  
+
   xr = a[25] - a[17]; a[25] = xr;
   xr = a[21] - xr;    a[21] = xr;
   xr = a[29] - xr;    a[29] = xr;
-  
+
   xr = a[17] - a[1];  a[17] = xr;
   xr = a[ 9] - xr;    a[ 9] = xr;
   xr = a[25] - xr;    a[25] = xr;
@@ -1846,7 +1848,7 @@ void window_subband2(short *x1, int a[SBLIMIT])
   xr = a[21] - xr;    a[21] = xr;
   xr = a[13] - xr;    a[13] = xr;
   xr = a[29] - xr;    a[29] = xr;
-  
+
   xr = a[ 1] - a[0];  a[ 1] = xr;
   xr = a[16] - xr;    a[16] = xr;
   xr = a[17] - xr;    a[17] = xr;
@@ -1862,7 +1864,7 @@ void window_subband2(short *x1, int a[SBLIMIT])
   xr = a[13] - xr;    a[13] = xr;
   xr = a[28] - xr;    a[28] = xr;
   xr = a[29] - xr;    a[29] = xr;
-  
+
   xr = a[ 0];  a[ 0] += a[31];  a[31] -= xr;
   xr = a[ 1];  a[ 1] += a[30];  a[30] -= xr;
   xr = a[16];  a[16] += a[15];  a[15] -= xr;
@@ -1902,7 +1904,7 @@ void mdct_long(int *out, int *in)
   ct      = (tc1 - tc3 - tc4) * cx[6];
   out[5]  = ct + st;
   out[6]  = ct - st;
-    
+
   tc2     = (in[16] - in[10]) * cx[6];
   ts6     =  ts6 * cx[7] + in[4] * cx[8];
 
@@ -1910,12 +1912,12 @@ void mdct_long(int *out, int *in)
   st      = -ts5 * cx[4] + ts6 - ts7 * cx[5] + ts8 * cx[3];
   out[1]  = ct + st;
   out[2]  = ct - st;
-    
+
   ct      =  tc1 * cx[1] - tc2 - tc3 * cx[2] + tc4 * cx[0];
   st      = -ts5 * cx[5] + ts6 - ts7 * cx[3] + ts8 * cx[4];
   out[ 9] = ct + st;
   out[10] = ct - st;
-    
+
   ct      = tc1 * cx[2] - tc2 + tc3 * cx[0] - tc4 * cx[1];
   st      = ts5 * cx[3] - ts6 + ts7 * cx[4] - ts8 * cx[5];
   out[13] = ct + st;
@@ -1959,22 +1961,22 @@ static int find_bitrate_index(int type, int bitrate, bool stereo)
     if (type == 1 && !stereo && bitrate > 160)
         bitrate = 160;
 
-    return ci->round_value_to_list32(bitrate,
+    return round_value_to_list32(bitrate,
         &bitr_index[type][1], 14, true) + 1;
 }
 
 static int find_samplerate_index(long freq, int *mp3_type)
 {
     int mpeg = freq >= (32000+24000)/2 ? 1 : 0;
-    int i = ci->round_value_to_list32(freq, sampr_index[mpeg], 3, true);
+    int i = round_value_to_list32(freq, sampr_index[mpeg], 3, true);
     *mp3_type = mpeg;
-    return i;    
+    return i;
 }
 
 static bool init_mp3_encoder_engine(int sample_rate,
                                     int num_channels,
                                     int rec_mono_mode,
-                                    struct encoder_config *enc_cfg)
+                                    int bitrate)
 {
     const bool stereo = num_channels > 1;
     uint32_t avg_byte_per_frame;
@@ -1985,7 +1987,7 @@ static bool init_mp3_encoder_engine(int sample_rate,
     cfg.mpg.smpl_id   = find_samplerate_index(sample_rate, &cfg.mpg.type);
     cfg.samplerate    = sampr_index[cfg.mpg.type][cfg.mpg.smpl_id];
     cfg.mpg.bitr_id   = find_bitrate_index(cfg.mpg.type,
-                                           enc_cfg->mp3_enc.bitrate,
+                                           bitrate,
                                            stereo);
     cfg.mpg.bitrate   = bitr_index[cfg.mpg.type][cfg.mpg.bitr_id];
     cfg.mpg.num_bands = num_bands[stereo ? cfg.mpg.type : 2][cfg.mpg.bitr_id];
@@ -2090,7 +2092,7 @@ STATICIRAM void to_mono_mm(void)
     /* |llllllllllllllll|rrrrrrrrrrrrrrrr| =>
      * |mmmmmmmmmmmmmmmm|mmmmmmmmmmmmmmmm|
      */
-    uint16_t *samp = &mfbuf[2*512];
+    uint16_t *samp = (uint16_t *) &mfbuf[2*512];  // FIXME: SHUTUP WARNING
     uint16_t *samp_end = samp + 2*samp_per_frame;
 
     inline void to_mono(uint16_t **samp)
@@ -2192,9 +2194,21 @@ static void set_scale_facs(int *mdct_freq)
   }
 }
 
-STATICIRAM void encode_frame(char *buffer, struct enc_chunk_hdr *chunk)
+
+#ifdef ROCKBOX_LITTLE_ENDIAN
+static unsigned char mp3_data[16384] __attribute__((aligned(4)));
+#endif
+//static unsigned int  mp3_data_len; /* current data size in buffer */
+
+static inline size_t
+_fixedlame_write(fixedlame_t *fl, void *buf, size_t size)
+{
+    return fl->write_callback(fl->write_callback_userdata, buf, size);
+}
+
+STATICIRAM void encode_frame(unsigned char *buffer, fixedlame_t *fl)
                              ICODE_ATTR;
-STATICIRAM void encode_frame(char *buffer, struct enc_chunk_hdr *chunk)
+STATICIRAM void encode_frame(unsigned char *buffer, fixedlame_t *fl)
 {
    int      gr, gr_cnt;
    uint32_t max;
@@ -2218,20 +2232,21 @@ STATICIRAM void encode_frame(char *buffer, struct enc_chunk_hdr *chunk)
     /* shift out old samples */
     memcpy(mfbuf, mfbuf + 2*cfg.granules*576, 4*512);
 
-    if (chunk->flags & CHUNKF_START_FILE)
+    if (fl->start)
     {
         /* prefix silent samples for encoder delay */
         memset(mfbuf + 2*512, 0, ENC_DELAY_SIZE);
         /* read new samples to iram for further processing */
         memcpy(mfbuf + 2*512 + ENC_DELAY_SIZE/2,
                buffer, pcm_chunk_size - ENC_DELAY_SIZE);
-        chunk->num_pcm = samp_per_frame - ENC_DELAY_SAMP;
+        fl->num_pcm = samp_per_frame - ENC_DELAY_SAMP;
+        fl->start = false;
     }
     else
     {
         /* read new samples to iram for further processing */
         memcpy(mfbuf + 2*512, buffer, pcm_chunk_size);
-        chunk->num_pcm = samp_per_frame;
+        fl->num_pcm = samp_per_frame;
     }
 
     if (cfg.channels == 1)
@@ -2370,7 +2385,7 @@ STATICIRAM void encode_frame(char *buffer, struct enc_chunk_hdr *chunk)
         }
     }
 
-    chunk->enc_size = cfg.byte_per_frame + cfg.mpg.padding;
+    int enc_size = cfg.byte_per_frame + cfg.mpg.padding;
 
     /* finish this chunk by adding sideinfo header data */
     CodedData.bitpos = 0;
@@ -2378,22 +2393,23 @@ STATICIRAM void encode_frame(char *buffer, struct enc_chunk_hdr *chunk)
 
 #ifdef ROCKBOX_BIG_ENDIAN
     /* copy chunk to enc_buffer */
-    memcpy(chunk->enc_data, CodedData.bbuf, chunk->enc_size);
+    // memcpy(chunk->enc_data, CodedData.bbuf, chunk->enc_size);
+    _fixedlame_write(fl, CodedData.bbuf, enc_size);
 #else
     /* swap frame to big endian */
-    byte_swap_frame32((uint32_t *)chunk->enc_data, CodedData.bbuf, chunk->enc_size);
+//    byte_swap_frame32((uint32_t *)chunk->enc_data, CodedData.bbuf, chunk->enc_size);
+    byte_swap_frame32((void *)&mp3_data, CodedData.bbuf, enc_size);
+    _fixedlame_write(fl, mp3_data, enc_size);
 #endif
 } /* encode_frame */
 
+#if 0
 /* called very often - inline */
 static inline bool is_file_data_ok(struct enc_file_event_data *filed) ICODE_ATTR;
 static inline bool is_file_data_ok(struct enc_file_event_data *filed)
 {
     return filed->rec_file >= 0 && (long)filed->chunk->flags >= 0;
 } /* is_event_ok */
-
-static unsigned char mp3_data[16384] __attribute__((aligned(4)));
-static unsigned int  mp3_data_len; /* current data size in buffer */
 
 /* called very often - inline */
 static inline bool on_write_chunk(struct enc_file_event_data *data) ICODE_ATTR;
@@ -2434,11 +2450,13 @@ static bool on_start_file(struct enc_file_event_data *data)
     if ((data->chunk->flags & CHUNKF_ERROR) || *data->filename == '\0')
         return false;
 
+#if 0
+    /* commendted out by avn:  fixedlame work with ready streams only */
     data->rec_file = ci->open(data->filename, O_RDWR|O_CREAT|O_TRUNC, 0666);
 
     if (data->rec_file < 0)
         return false;
-
+#endif
     /* reset sample count */
     data->num_pcm_samples = 0;
 
@@ -2461,12 +2479,14 @@ static bool on_end_file(struct enc_file_event_data *data)
     /* reset buffer write position */
     mp3_data_len = 0;
 
+    /* file OI removed by avn */
+#if 0
     /* always _try_ to write the file header, even on error */
     if (ci->close(data->rec_file) != 0)
         return false;
 
     data->rec_file = -1;
-
+#endif
     return true;
 } /* on_end_file */
 
@@ -2531,7 +2551,7 @@ STATICIRAM void enc_events_callback(enum enc_events event, void *data)
             return;
 
         break;
- 
+
     case ENC_END_FILE:
          if (on_end_file((struct enc_file_event_data *)data))
             return;
@@ -2549,28 +2569,23 @@ STATICIRAM void enc_events_callback(enum enc_events event, void *data)
     /* Something failed above. Signal error back to core. */
     ((struct enc_file_event_data *)data)->chunk->flags |= CHUNKF_ERROR;
 } /* enc_events_callback */
+#endif
 
-static bool enc_init(void)
+bool fixedlame_enc_init(fixedlame_t *fl)
 {
+/*
     struct enc_inputs     inputs;
     struct enc_parameters params;
-
-    if (ci->enc_get_inputs         == NULL ||
-        ci->enc_set_parameters     == NULL ||
-        ci->enc_get_chunk          == NULL ||
-        ci->enc_finish_chunk       == NULL ||
-        ci->enc_get_pcm_data       == NULL ||
-        ci->enc_unget_pcm_data     == NULL )
-        return false;
 
     ci->enc_get_inputs(&inputs);
 
     if (inputs.config->afmt != AFMT_MPA_L3)
         return false;
-
-    init_mp3_encoder_engine(inputs.sample_rate, inputs.num_channels,
-                            inputs.rec_mono_mode, inputs.config);
-
+*/
+    fprintf(stderr, "init mp3 encoder engine\n");
+    init_mp3_encoder_engine(fl->sample_rate, fl->num_channels,
+                            fl->rec_mono_mode, fl->bitrate);
+#if 0
     err = 0;
 
     /* configure the buffer system */
@@ -2588,11 +2603,14 @@ static bool enc_init(void)
 #ifdef CPU_COLDFIRE
     asm volatile ("move.l #0, %macsr"); /* integer mode */
 #endif
-
+#endif
     return true;
 } /* enc_init */
 
-enum codec_status codec_main(void)
+
+#if 0
+static int
+internal_init()
 {
     /* Generic codec initialisation */
     if (!enc_init())
@@ -2603,45 +2621,52 @@ enum codec_status codec_main(void)
 
     /* main application waits for this flag during encoder loading */
     ci->enc_codec_loaded = 1;
+    return 0;
+}
+#endif
 
-    /* main encoding loop */
-    while (!ci->stop_encoder)
+static void *
+_enc_get_pcm_data(void *buffer, int chunk_size, int size, int *n)
+{
+    int offset = chunk_size * *n;
+    if(offset < size * 4)
     {
-        char *buffer;
-
-        while ((buffer = ci->enc_get_pcm_data(pcm_chunk_size)) != NULL)
-        {
-            struct enc_chunk_hdr *chunk;
-
-            if (ci->stop_encoder)
-                break;
-
-            chunk           = ci->enc_get_chunk();
-            chunk->enc_data = ENC_CHUNK_SKIP_HDR(chunk->enc_data, chunk);
-
-            encode_frame(buffer, chunk);
-
-            if (chunk->num_pcm < samp_per_frame)
-            {
-                ci->enc_unget_pcm_data(pcm_chunk_size - chunk->num_pcm*4);
-                chunk->num_pcm = samp_per_frame;
-            }
-
-            ci->enc_finish_chunk();
-
-            ci->yield();
-        }
-
-        ci->yield();
+        (*n)++;
+        return buffer + offset;
     }
+    return NULL;
+}
 
-    /* reset parameters to initial state */
-    ci->enc_set_parameters(NULL);
+static void
+internal_main(fixedlame_t *fl, void *samples, int size)
+{
+        unsigned char *buffer = samples;
 
-    /* main application waits for this flag during encoder removing */
-    ci->enc_codec_loaded = 0;
+        int n = 0;
+        while ((buffer = _enc_get_pcm_data(buffer, pcm_chunk_size, size, &n)) != NULL)
+        {
+//            struct enc_chunk_hdr *chunk;
 
-    return CODEC_OK;
-} /* codec_start */
+//            chunk           = ci->enc_get_chunk();
+//            chunk->enc_data = ENC_CHUNK_SKIP_HDR(chunk->enc_data, chunk);
 
-#endif /* ndef SIMULATOR */
+            encode_frame(buffer, fl);
+
+//            assert(!((chunk->num_pcm < samp_per_frame)));
+//            if (chunk->num_pcm < samp_per_frame)
+//            {
+//                ci->enc_unget_pcm_data(pcm_chunk_size - chunk->num_pcm*4);
+//                chunk->num_pcm = samp_per_frame;
+//            }
+
+//            ci->enc_finish_chunk();
+        }
+}
+
+size_t
+fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
+{
+    internal_main(fl, samples, n_samps * 4);
+    return n_samps;
+}
+
