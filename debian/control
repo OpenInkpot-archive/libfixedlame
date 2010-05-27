@@ -1,0 +1,42 @@
+Source: libfixedlame
+Section: core
+Maintainer: Alexander V. Nikolaev <avn@daemon.hole.ru>
+Build-Depends: debhelper (>= 7), automake, libtool, libsox-dev
+XCS-Cross-Host-Build-Depends: debhelper (>= 7), automake, libtool
+XCS-Cross-Build-Depends: libsox-dev
+Priority: optional
+Standards-Version: 3.8.3
+
+Package: libfixedlame0
+Priority: optional
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Fixedpoing-only MP3 encoder
+ This package provides library for mp3 encoder, derived from rockbox
+
+Package: libfixedlame-dev
+Priority: optional
+Architecture: any
+Depends: libfixedlame0 (= ${binary:Version})
+Description: Fixedpoing-only MP3 encoder
+ Fixedpoint MP3 encoder -- development files
+ .
+ This package contains header files and symlinks necessary to link with library.
+
+Package: libfixedlame0-dbg
+Priority: extra
+Architecture: any
+Section: debug
+Depends: libfixedlame0 (= ${binary:Version})
+Description: Fixedpoing only MP3 encoder -- debug files
+ Fixedpoint only MP3 encoder
+ .
+ This package contains debugging symbols for shared library
+
+Package: libfixedlame-sox
+Priority: extra
+Architecture: any
+Section: debug
+Depends: libfixedlame0 (= ${binary:Version})
+Description: Fixedpoing only MP3 encoder -- SOX plugin
+ This package provides SOX plugin to use only fixedpoint math
