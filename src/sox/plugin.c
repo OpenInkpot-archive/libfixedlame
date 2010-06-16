@@ -11,7 +11,10 @@ static size_t
 _fixedlame_write_callback(void *userdata, void *buf, size_t size)
 {
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) userdata;
-    return fwrite(buf, size, 1, self->file);
+    size_t rc = fwrite(buf, size, 1, self->file);
+    fflush(self->file);
+    fprintf(stderr, "written %d bytes\n", size);
+    return rc;
 }
 
 static void
@@ -63,8 +66,7 @@ static size_t
 mp3_write(sox_format_t * ft, const sox_sample_t *buf, size_t samp)
 {
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) ft->priv;
-    fixedlame_encode(self->codec, (void *)buf, samp);
-    return 0;
+    return fixedlame_encode(self->codec, (void *)buf, samp);
 }
 
 const sox_format_handler_t *

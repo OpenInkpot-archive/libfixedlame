@@ -36,39 +36,6 @@ extern unsigned char* mp3buf;     /* The actual MP3 buffer from Rockbox         
 extern unsigned char* mallocbuf;  /* The free space after the codec in the codec buffer */
 extern unsigned char* filebuf;    /* The rest of the MP3 buffer                         */
 
-/* Standard library functions that are used by the codecs follow here */
-
-/* Get these functions 'out of the way' of the standard functions. Not doing
- * so confuses the cygwin linker, and maybe others. These functions need to
- * be implemented elsewhere */
-#define malloc(x) codec_malloc(x)
-#define calloc(x,y) codec_calloc(x,y)
-#define realloc(x,y) codec_realloc(x,y)
-#define free(x) codec_free(x)
-#undef alloca
-#define alloca(x) __builtin_alloca(x)
-
-void* codec_malloc(size_t size);
-void* codec_calloc(size_t nmemb, size_t size);
-void* codec_realloc(void* ptr, size_t size);
-void codec_free(void* ptr);
-
-void *memcpy(void *dest, const void *src, size_t n);
-void *memset(void *s, int c, size_t n);
-int memcmp(const void *s1, const void *s2, size_t n);
-void *memmove(void *s1, const void *s2, size_t n);
-
-size_t strlen(const char *s);
-char *strcpy(char *dest, const char *src);
-char *strcat(char *dest, const char *src);
-
-/* on some platforms strcmp() seems to be a tricky define which
- * breaks if we write down strcmp's prototype */
-#undef strcmp
-int strcmp(const char *s1, const char *s2);
-
-void qsort(void *base, size_t nmemb, size_t size, int(*compar)(const void *, const void *));
-
 /*MDCT library functions*/
 /* -1- Tremor mdct */
 extern void mdct_backward(int n, int32_t *in, int32_t *out);
@@ -102,7 +69,7 @@ static inline unsigned int bs_generic(unsigned int v, int mode)
     } else {
         r = 31 - r;
     /* If mode is constant, this is a single conditional instruction */
-        if (mode & BS_0_0 && (signed)r < 0) 
+        if (mode & BS_0_0 && (signed)r < 0)
             r += 1;
     }
 #else

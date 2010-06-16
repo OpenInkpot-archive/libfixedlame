@@ -2608,65 +2608,47 @@ bool fixedlame_enc_init(fixedlame_t *fl)
 } /* enc_init */
 
 
-#if 0
-static int
-internal_init()
-{
-    /* Generic codec initialisation */
-    if (!enc_init())
-    {
-        ci->enc_codec_loaded = -1;
-        return CODEC_ERROR;
-    }
-
-    /* main application waits for this flag during encoder loading */
-    ci->enc_codec_loaded = 1;
-    return 0;
-}
-#endif
-
-static void *
-_enc_get_pcm_data(void *buffer, int chunk_size, int size, int *n)
-{
-    int offset = chunk_size * *n;
-    if(offset < size * 4)
-    {
-        (*n)++;
-        return buffer + offset;
-    }
-    return NULL;
-}
-
-static void
-internal_main(fixedlame_t *fl, void *samples, int size)
-{
-        unsigned char *buffer = samples;
-
-        int n = 0;
-        while ((buffer = _enc_get_pcm_data(buffer, pcm_chunk_size, size, &n)) != NULL)
-        {
-//            struct enc_chunk_hdr *chunk;
-
-//            chunk           = ci->enc_get_chunk();
-//            chunk->enc_data = ENC_CHUNK_SKIP_HDR(chunk->enc_data, chunk);
-
-            encode_frame(buffer, fl);
-
-//            assert(!((chunk->num_pcm < samp_per_frame)));
-//            if (chunk->num_pcm < samp_per_frame)
-//            {
-//                ci->enc_unget_pcm_data(pcm_chunk_size - chunk->num_pcm*4);
-//                chunk->num_pcm = samp_per_frame;
-//            }
-
-//            ci->enc_finish_chunk();
-        }
-}
+//static unsigned char overflow[16384];
+static void *overflow = NULL;
+static int overflow_size = 0;
 
 size_t
 fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
 {
-    internal_main(fl, samples, n_samps * 4);
+    if(!overflow)
+        overflow = calloc(pcm_chunk_size, 1);
+    // Hardcoded 4 FIXME!!!
+    int size = n_samps * fl->num_channels * 4;
+    fprintf(stderr, "encode_internal: %p %d (%d), chunk_size=%d, channels=%d\n",
+    samples, n_samps, size, pcm_chunk_size,fl->num_channels);
+    void *buffer = samples;
+
+    void *endptr = samples + size;
+
+    if(overflow_size)
+    {
+        fprintf(stderr, "Append %d bytes to overflow data\n", pcm_chunk_size-overflow_size);
+        memcpy(overflow + overflow_size, buffer, pcm_chunk_size-overflow_size);
+        buffer += overflow_size;
+        overflow_size = 0;
+        encode_frame(overflow, fl);
+    }
+
+    while(buffer < endptr)
+    {
+            fprintf(stderr, "frame %d %x\n", buffer - samples, *((uint32_t*) buffer));
+            encode_frame(buffer, fl);
+            if((buffer + pcm_chunk_size) > endptr)
+            {
+                overflow_size = endptr - buffer;
+                memcpy(overflow, buffer, overflow_size);
+                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
+                break;
+            }
+            else
+                buffer += pcm_chunk_size;
+    }
     return n_samps;
 }
+
 
