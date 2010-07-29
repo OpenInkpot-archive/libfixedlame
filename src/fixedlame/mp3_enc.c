@@ -2636,13 +2636,13 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
 
     while(buffer < endptr)
     {
-            fprintf(stderr, "frame %d %x\n", buffer - samples, *((uint32_t*) buffer));
+//            fprintf(stderr, "frame %l %x\n", buffer - samples, *((uint32_t*) buffer));
             encode_frame(buffer, fl);
             if((buffer + pcm_chunk_size) > endptr)
             {
                 overflow_size = endptr - buffer;
                 memcpy(overflow, buffer, overflow_size);
-                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
+//                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
                 break;
             }
             else
