@@ -13,7 +13,7 @@ _fixedlame_write_callback(void *userdata, void *buf, size_t size)
     sox_fixedpoint_mp3_t *self = (sox_fixedpoint_mp3_t *) userdata;
     size_t rc = fwrite(buf, size, 1, self->file);
     fflush(self->file);
-    fprintf(stderr, "written %d bytes\n", size);
+    //fprintf(stderr, "written %d bytes\n", size);
     return rc;
 }
 

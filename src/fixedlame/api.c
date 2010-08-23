@@ -11,14 +11,18 @@ fixedlame_init(int sample_rate, int channels, int bitrate)
     fixedlame_t *codec = calloc(1, sizeof(fixedlame_t));
     codec->start = true;
 
+//    codec->rec_mono_mode = channels == 1 ? 1 : 0;
+    if(channels == 1) {
+        channels = 2;
+        codec->rec_mono_mode = 1;
+    }
+    else
+        codec->rec_mono_mode = 0;
     codec->num_channels = channels;
     codec->sample_rate = sample_rate;
     codec->bitrate = bitrate;
 
-    codec->rec_mono_mode = 1;
     fixedlame_enc_init(codec);
-    /* currently ci is static, but it can change later */
-//    codec->ci = fixedlame_private_init_ci();
     return codec;
 }
 

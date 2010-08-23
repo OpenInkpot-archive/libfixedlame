@@ -2582,7 +2582,16 @@ bool fixedlame_enc_init(fixedlame_t *fl)
     if (inputs.config->afmt != AFMT_MPA_L3)
         return false;
 */
-    fprintf(stderr, "init mp3 encoder engine\n");
+    fprintf(stderr, "mp3_init: init mp3 encoder engine\n");
+    fprintf(stderr, "mp3_init: sample_rate: %d\n", fl->sample_rate);
+    fprintf(stderr, "mp3_init: num_channels: %d \n", fl->num_channels);
+    fprintf(stderr, "mp3_init: bitrate: %d\n", fl->bitrate);
+    fprintf(stderr, "mp3_init: rec_mono_mode: %d\n", fl->rec_mono_mode);
+#ifdef ROCKBOX_LITTLE_ENDIAN
+    fprintf(stderr, "mp3_init: little endian\n");
+#else
+    fprintf(stderr, "mp3_init: big endian\n");
+#endif
     init_mp3_encoder_engine(fl->sample_rate, fl->num_channels,
                             fl->rec_mono_mode, fl->bitrate);
 #if 0
@@ -2618,9 +2627,9 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
     if(!overflow)
         overflow = calloc(pcm_chunk_size, 1);
     // Hardcoded 4 FIXME!!!
-    int size = n_samps * fl->num_channels * 4;
+    int size = n_samps * fl->num_channels * 2;
     fprintf(stderr, "encode_internal: %p %d (%d), chunk_size=%d, channels=%d\n",
-    samples, n_samps, size, pcm_chunk_size,fl->num_channels);
+        samples, n_samps, size, pcm_chunk_size, fl->num_channels);
     void *buffer = samples;
 
     void *endptr = samples + size;
@@ -2629,20 +2638,20 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
     {
         fprintf(stderr, "Append %d bytes to overflow data\n", pcm_chunk_size-overflow_size);
         memcpy(overflow + overflow_size, buffer, pcm_chunk_size-overflow_size);
-        buffer += overflow_size;
+        buffer += pcm_chunk_size - overflow_size;
         overflow_size = 0;
         encode_frame(overflow, fl);
     }
 
     while(buffer < endptr)
     {
-//            fprintf(stderr, "frame %l %x\n", buffer - samples, *((uint32_t*) buffer));
+            fprintf(stderr, "frame %d %p\n", buffer - samples, buffer);
             encode_frame(buffer, fl);
             if((buffer + pcm_chunk_size) > endptr)
             {
                 overflow_size = endptr - buffer;
                 memcpy(overflow, buffer, overflow_size);
-//                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
+                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
                 break;
             }
             else
