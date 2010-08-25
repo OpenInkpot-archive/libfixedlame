@@ -80,7 +80,7 @@ lsx_fixedpoint_mp3_format_fn()
         .sox_lib_version_code = SOX_LIB_VERSION_CODE,
         .description = "MPEG Layer 3 audio compression (fixedpoint version)",
         .names = names,
-        .flags = SOX_FILE_NOSTDIO,
+        .flags = SOX_FILE_NOSTDIO | SOX_FILE_MONO,
         .startread = NULL,
         .read = NULL,
         .stopread = NULL,
