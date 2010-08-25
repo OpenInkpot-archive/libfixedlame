@@ -2628,7 +2628,7 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
         overflow = calloc(pcm_chunk_size, 1);
     // Hardcoded 4 FIXME!!!
     int size = n_samps * fl->num_channels * 2;
-    fprintf(stderr, "encode_internal: %p %d (%d), chunk_size=%d, channels=%d\n",
+//    fprintf(stderr, "encode_internal: %p %d (%d), chunk_size=%d, channels=%d\n",
         samples, n_samps, size, pcm_chunk_size, fl->num_channels);
     void *buffer = samples;
 
@@ -2636,7 +2636,7 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
 
     if(overflow_size)
     {
-        fprintf(stderr, "Append %d bytes to overflow data\n", pcm_chunk_size-overflow_size);
+//        fprintf(stderr, "Append %d bytes to overflow data\n", pcm_chunk_size-overflow_size);
         memcpy(overflow + overflow_size, buffer, pcm_chunk_size-overflow_size);
         buffer += pcm_chunk_size - overflow_size;
         overflow_size = 0;
@@ -2645,13 +2645,13 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
 
     while(buffer < endptr)
     {
-            fprintf(stderr, "frame %d %p\n", buffer - samples, buffer);
+//            fprintf(stderr, "frame %d %p\n", buffer - samples, buffer);
             encode_frame(buffer, fl);
             if((buffer + pcm_chunk_size) > endptr)
             {
                 overflow_size = endptr - buffer;
                 memcpy(overflow, buffer, overflow_size);
-                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
+//                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
                 break;
             }
             else
