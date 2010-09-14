@@ -74,7 +74,6 @@ mp3_write(sox_format_t * ft, const sox_sample_t *buf, size_t samp)
     int rc;
     SOX_SAMPLE_LOCALS;
 
-    fprintf(stderr, "Create preprocess buffer: %d\n", bufsize);
     if(!buffer)
         return 0;
 
