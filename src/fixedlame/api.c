@@ -14,7 +14,7 @@ fixedlame_init(int sample_rate, int channels, int bitrate)
 //    codec->rec_mono_mode = channels == 1 ? 1 : 0;
     if(channels == 1) {
         channels = 2;
-        codec->rec_mono_mode = 1;
+        codec->rec_mono_mode = 2;
     }
     else
         codec->rec_mono_mode = 0;
