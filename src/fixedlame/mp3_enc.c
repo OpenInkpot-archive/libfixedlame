@@ -124,9 +124,9 @@ struct huffcodebig {
 
 static short     mfbuf       [2*(1152+512)]      IBSS_ATTR; /*  3328 Bytes */
 static int       sb_data     [2][2][18][SBLIMIT] IBSS_ATTR; /* 13824 Bytes */
-static int       mdct_freq   [SAMPL2+100]            IBSS_ATTR; /*  2304 Bytes */
-static char      mdct_sign   [SAMPL2+100]            IBSS_ATTR; /*   576 Bytes */
-static short     enc_data    [SAMPL2+100]            IBSS_ATTR; /*  1152 Bytes */
+static int       mdct_freq   [SAMPL2]            IBSS_ATTR; /*  2304 Bytes */
+static char      mdct_sign   [SAMPL2]            IBSS_ATTR; /*   576 Bytes */
+static short     enc_data    [SAMPL2]            IBSS_ATTR; /*  1152 Bytes */
 static uint32_t  scalefac    [23]                IBSS_ATTR; /*    92 Bytes */
 static BF_Data   CodedData                       IBSS_ATTR; /*  1056 Bytes */
 static int       ca          [8]                 IBSS_ATTR; /*    32 Bytes */
@@ -2092,13 +2092,14 @@ STATICIRAM void to_mono_mm(void)
     /* |llllllllllllllll|rrrrrrrrrrrrrrrr| =>
      * |mmmmmmmmmmmmmmmm|mmmmmmmmmmmmmmmm|
      */
-    uint16_t *samp = (uint16_t *) &mfbuf[2*512];  // FIXME: SHUTUP WARNING
+    uint16_t mfbuf[2*512];
+    uint16_t *samp =  mfbuf;
     uint16_t *samp_end = samp + 2*samp_per_frame;
 
     inline void to_mono(uint16_t **samp)
     {
-        int16_t r = **samp;
-        int16_t l = *(*samp+1);
+        int16_t l = **samp;
+        int16_t r = *(*samp+1);
         int32_t m;
 
         switch(cfg.rec_mono_mode)
@@ -2126,13 +2127,6 @@ STATICIRAM void to_mono_mm(void)
     do
     {
         to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
-        to_mono(&samp);
     }
     while (samp < samp_end);
 } /* to_mono_mm */
@@ -2148,13 +2142,6 @@ static inline void byte_swap_frame32(uint32_t *dst, uint32_t *src,
 
     do
     {
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
-        *dst++ = swap32(*src++);
         *dst++ = swap32(*src++);
     }
     while(src < src_end);
@@ -2206,9 +2193,7 @@ _fixedlame_write(fixedlame_t *fl, void *buf, size_t size)
     return fl->write_callback(fl->write_callback_userdata, buf, size);
 }
 
-STATICIRAM void encode_frame(unsigned char *buffer, fixedlame_t *fl)
-                             ICODE_ATTR;
-STATICIRAM void encode_frame(unsigned char *buffer, fixedlame_t *fl)
+void encode_frame(unsigned char *buffer, fixedlame_t *fl)
 {
    int      gr, gr_cnt;
    uint32_t max;
@@ -2573,15 +2558,7 @@ STATICIRAM void enc_events_callback(enum enc_events event, void *data)
 
 bool fixedlame_enc_init(fixedlame_t *fl)
 {
-/*
-    struct enc_inputs     inputs;
-    struct enc_parameters params;
-
-    ci->enc_get_inputs(&inputs);
-
-    if (inputs.config->afmt != AFMT_MPA_L3)
-        return false;
-*/
+#if 0
     fprintf(stderr, "mp3_init: init mp3 encoder engine\n");
     fprintf(stderr, "mp3_init: sample_rate: %d\n", fl->sample_rate);
     fprintf(stderr, "mp3_init: num_channels: %d \n", fl->num_channels);
@@ -2592,27 +2569,9 @@ bool fixedlame_enc_init(fixedlame_t *fl)
 #else
     fprintf(stderr, "mp3_init: big endian\n");
 #endif
+#endif
     init_mp3_encoder_engine(fl->sample_rate, fl->num_channels,
                             fl->rec_mono_mode, fl->bitrate);
-#if 0
-    err = 0;
-
-    /* configure the buffer system */
-    params.afmt            = AFMT_MPA_L3;
-    params.chunk_size      = cfg.byte_per_frame + 1;
-    params.enc_sample_rate = cfg.samplerate;
-    /* need enough reserved bytes to hold one frame of pcm samples + hdr
-       for padding and flushing */
-    params.reserve_bytes   = ENC_CHUNK_HDR_SIZE + pcm_chunk_size;
-    params.events_callback = enc_events_callback;
-    ci->enc_set_parameters(&params);
-
-    res_buffer             = params.reserve_buffer;
-
-#ifdef CPU_COLDFIRE
-    asm volatile ("move.l #0, %macsr"); /* integer mode */
-#endif
-#endif
     return true;
 } /* enc_init */
 
@@ -2627,16 +2586,15 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
     if(!overflow)
         overflow = calloc(pcm_chunk_size, 1);
     // Hardcoded 4 FIXME!!!
-    int size = n_samps * fl->num_channels * 2;
+    int size = n_samps * 4;
 //    fprintf(stderr, "encode_internal: %p %d (%d), chunk_size=%d, channels=%d\n",
-        samples, n_samps, size, pcm_chunk_size, fl->num_channels);
+//        samples, n_samps, size, pcm_chunk_size, fl->num_channels);
     void *buffer = samples;
 
     void *endptr = samples + size;
 
     if(overflow_size)
     {
-//        fprintf(stderr, "Append %d bytes to overflow data\n", pcm_chunk_size-overflow_size);
         memcpy(overflow + overflow_size, buffer, pcm_chunk_size-overflow_size);
         buffer += pcm_chunk_size - overflow_size;
         overflow_size = 0;
@@ -2645,17 +2603,14 @@ fixedlame_encode_internal(fixedlame_t *fl, void *samples, int n_samps)
 
     while(buffer < endptr)
     {
-//            fprintf(stderr, "frame %d %p\n", buffer - samples, buffer);
-            encode_frame(buffer, fl);
             if((buffer + pcm_chunk_size) > endptr)
             {
                 overflow_size = endptr - buffer;
                 memcpy(overflow, buffer, overflow_size);
-//                fprintf(stderr, "overflow: %d bytes\n", overflow_size);
                 break;
             }
-            else
-                buffer += pcm_chunk_size;
+            encode_frame(buffer, fl);
+            buffer += pcm_chunk_size;
     }
     return n_samps;
 }
