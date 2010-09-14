@@ -1,3 +1,9 @@
+libfixedlame (0.2) zelazny; urgency=low
+
+  * "test-me-please" release: nasty bug with buffering was fixed
+
+ -- Alexander V. Nikolaev <avn@daemon.hole.ru>  Wed, 15 Sep 2010 02:09:33 +0300
+
 libfixedlame (0.1) zelazny; urgency=low
 
   * Initial release. (Closes: #XXXXXX)
