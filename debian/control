@@ -17,6 +17,7 @@ Description: Fixedpoing-only MP3 encoder
 Package: libfixedlame-dev
 Priority: optional
 Architecture: any
+Section: libdevel
 Depends: libfixedlame0 (= ${binary:Version})
 Description: Fixedpoing-only MP3 encoder
  Fixedpoint MP3 encoder -- development files
