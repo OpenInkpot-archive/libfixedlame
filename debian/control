@@ -36,7 +36,6 @@ Description: Fixedpoing only MP3 encoder -- debug files
 Package: libfixedlame-sox
 Priority: extra
 Architecture: any
-Section: debug
 Depends: libfixedlame0 (= ${binary:Version})
 Description: Fixedpoing only MP3 encoder -- SOX plugin
  This package provides SOX plugin to use only fixedpoint math
