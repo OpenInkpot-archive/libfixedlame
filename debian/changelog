@@ -1,3 +1,9 @@
+libfixedlame (0.3) zelazny; urgency=low
+
+  * Fix wrong section in debian/control for libfixedlame-sox
+
+ -- Alexander V. Nikolaev <avn@daemon.hole.ru>  Mon, 20 Sep 2010 20:17:29 +0300
+
 libfixedlame (0.2) zelazny; urgency=low
 
   * "test-me-please" release: nasty bug with buffering was fixed
